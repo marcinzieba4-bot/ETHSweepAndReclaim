@@ -1,5 +1,8 @@
 # ETH Sweep & Reclaim
 
+> **Result (2022-01 → 2026-11, real Binance data): no edge.** About −0.25R per trade after costs, negative every year,
+> and no better than random levels. See [RESULTS.md](RESULTS.md).
+
 Backtest of a liquidation-cluster **sweep & reclaim** setup on ETHUSDT perpetual (Binance USD-M, 5m bars).
 
 ## Hypothesis
@@ -36,6 +39,12 @@ python -m src.download --start 2022-01          # ~1,800 small zips, a few minut
 python -m src.backtest --data data/ETHUSDT_5m.parquet --out results --split 2025-01-01
 ```
 Outputs in `results/`: `report.json`, `grid_is.csv`, `trades_*.csv`, `equity_baseline.png`.
+
+Robustness: funding filter, 15m/1h reclaim close, zero costs and fixed targets, each with IS, OOS and a random-level control:
+```bash
+python -m src.robustness --data data/ETHUSDT_5m.parquet --out results --split 2025-01-01
+```
+A snapshot of the outputs is committed in `docs/`.
 
 Pipeline smoke test (no network):
 ```bash
