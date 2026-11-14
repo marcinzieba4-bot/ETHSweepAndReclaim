@@ -34,6 +34,7 @@ class StratConfig:
     oi_drop: float = 0.005       # OI drop during sweep >= 0.5%
     oi_lookback: int = 12
     funding_max: float | None = None   # long only if funding <= this (short: >= -this)
+    confirm_min: int = 5         # reclaim only counts on a bar that closes a 5/15/60-minute candle
     stop_buf: float = 0.001
     tp_R: float = 2.0
     tp_min_R: float = 1.0
@@ -49,6 +50,9 @@ def _one_side(df, mp, cfg: StratConfig, sgn: int, rng):
     o, h, l, c = (df[x].to_numpy(float) for x in ("open", "high", "low", "close"))
     oi = df["oi"].to_numpy(float)
     fund = df["funding"].to_numpy(float) if "funding" in df else np.zeros(len(df))
+    # bar t closes a confirm_min candle when its close time (open + 5m) is a multiple of confirm_min
+    mod = (df.index.hour * 60 + df.index.minute + 5) % cfg.confirm_min
+    tf_close = np.asarray(mod == 0)
     if sgn > 0:
         lvl, share, tlvl = mp["L_lvl"].to_numpy(), mp["L_share"].to_numpy(), mp["S_lvl"].to_numpy()
     else:
@@ -85,7 +89,7 @@ def _one_side(df, mp, cfg: StratConfig, sgn: int, rng):
             state, L, last_ref = "idle", np.nan, -10**9
             t += 1
             continue
-        reclaimed = (c[t] > L * (1 + cfg.buf)) if sgn > 0 else (c[t] < L * (1 - cfg.buf))
+        reclaimed = tf_close[t] and ((c[t] > L * (1 + cfg.buf)) if sgn > 0 else (c[t] < L * (1 - cfg.buf)))
         if not reclaimed:
             t += 1
             continue

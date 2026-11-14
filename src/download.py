@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -59,7 +60,7 @@ def _strip_header(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def klines(sym, start, end, cache, workers=8):
-    today = pd.Timestamp.utcnow().to_period("M")
+    today = pd.Timestamp.now("UTC").tz_localize(None).to_period("M")
     urls = []
     for m in _months(start, end):
         if m < today:
@@ -104,7 +105,7 @@ def funding(sym, start, end, cache):
 
 
 def build(sym="ETHUSDT", start="2022-01", end=None, out="data"):
-    end = end or pd.Timestamp.utcnow().strftime("%Y-%m")
+    end = end or pd.Timestamp.now("UTC").strftime("%Y-%m")
     out = Path(out)
     cache = out / "cache"
     cache.mkdir(parents=True, exist_ok=True)
@@ -112,8 +113,17 @@ def build(sym="ETHUSDT", start="2022-01", end=None, out="data"):
     m = metrics(sym, start, end, cache)
     f = funding(sym, start, end, cache)
     m.index = m.index.floor("5min")
+    # Binance metrics contain glitch rows with OI = 0 that revert a few bars later; treat as missing
+    m = m.mask(m["oi"] <= 0)
     df = k.join(m[~m.index.duplicated()], how="left")
     df[["oi", "oi_usd"]] = df[["oi", "oi_usd"]].ffill()
+    # flip-flop glitches (e.g. 2026-10-15: OI alternating 1.9M <-> 2.3M with flat price):
+    # mask values > 5% away from the centred 2h median. Removes ~12 bars over 2022-2026, real flushes survive.
+    med = df["oi"].rolling(25, center=True, min_periods=5).median()
+    bad = (df["oi"] / med - 1).abs() > 0.05
+    df.loc[bad, ["oi", "oi_usd"]] = np.nan
+    df[["oi", "oi_usd"]] = df[["oi", "oi_usd"]].ffill()
+    print(f"masked {int(bad.sum())} OI glitch bars")
     df["funding"] = f["funding"].reindex(df.index, method="ffill") if len(f) else 0.0
     df = df.dropna(subset=["oi"])
     path = out / f"{sym}_5m.parquet"
