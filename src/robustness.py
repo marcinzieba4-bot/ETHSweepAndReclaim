@@ -10,6 +10,7 @@ For the README-default config and for the IS-picked config of each side, it runs
   * funding below neutral 0.01% (milder version of the same filter)
   * reclaim confirmed on a 15m close, and on a 1h close (plan: "holds on a 15m or 1h close")
   * zero fees and slippage      (is there a gross edge that costs remove?)
+  * fixed 1R / 1.5R / 2R target instead of the map target
 Each variant gets IS stats, OOS stats and an OOS random-level control.
 Output: results/robustness.json and results/robustness.csv
 """
@@ -57,6 +58,11 @@ def variants(cfg: StratConfig):
         "confirm_15m": replace(cfg, confirm_min=15, reclaim_bars=max(rb, 12)),
         "confirm_1h": replace(cfg, confirm_min=60, reclaim_bars=max(rb, 24)),
         "zero_cost": replace(cfg, fee=0.0, slip=0.0),
+        # map targets sit a median 3.3R away; ~49% of trades touch +1R first. Chosen after seeing that,
+        # so these only count if they hold OOS and beat the control.
+        "fixed_1R": replace(cfg, use_map_tp=False, tp_R=1.0),
+        "fixed_1.5R": replace(cfg, use_map_tp=False, tp_R=1.5),
+        "fixed_2R": replace(cfg, use_map_tp=False, tp_R=2.0),
     }
 
 
