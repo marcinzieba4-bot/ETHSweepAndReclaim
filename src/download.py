@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
@@ -30,7 +31,14 @@ KLINE_COLS = ["open_time", "open", "high", "low", "close", "volume", "close_time
 def _get_zip_csv(url: str, cache: Path) -> pd.DataFrame | None:
     f = cache / url.rsplit("/", 1)[-1]
     if not f.exists():
-        r = requests.get(url, timeout=60)
+        for attempt in range(5):   # transient proxy / connection drops shouldn't kill a 2,000-file run
+            try:
+                r = requests.get(url, timeout=60)
+                break
+            except requests.RequestException:
+                if attempt == 4:
+                    raise
+                time.sleep(2 ** attempt)
         if r.status_code != 200:
             return None
         f.write_bytes(r.content)

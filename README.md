@@ -2,6 +2,9 @@
 
 > **Result (2022-01 → 2026-11, real Binance data): no edge.** About −0.25R per trade after costs, negative every year,
 > and no better than random levels. See [RESULTS.md](RESULTS.md).
+>
+> **What may work instead:** a 14/28/56-day trend ensemble on ETH, BTC and SOL, sized by volatility.
+> Portfolio Sharpe 0.88 long/short (1.08 long-only), positive in- and out-of-sample on every coin. See [TREND.md](TREND.md).
 
 Backtest of a liquidation-cluster **sweep & reclaim** setup on ETHUSDT perpetual (Binance USD-M, 5m bars).
 
